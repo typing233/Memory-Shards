@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Shards - 情侣拼图游戏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #ff6b9d;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+        }
+
+        .step {
+            display: none;
+        }
+
+        .step.active {
+            display: block;
+        }
+
+        /* Upload Section */
+        .upload-section {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .upload-box {
+            flex: 1;
+            max-width: 400px;
+            border: 3px dashed #ff9a9e;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .upload-box:hover {
+            border-color: #ff6b9d;
+            background: rgba(255, 192, 203, 0.2);
+        }
+
+        .upload-box.dragover {
+            border-color: #ff6b9d;
+            background: rgba(255, 192, 203, 0.3);
+            transform: scale(1.02);
+        }
+
+        .upload-box h3 {
+            color: #ff6b9d;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .upload-box p {
+            color: #888;
+            margin-bottom: 20px;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #ff9a9e 0%, #ff6b9d 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 157, 0.3);
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4);
+        }
+
+        .upload-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .preview-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .preview-container.show {
+            display: block;
+        }
+
+        .preview-img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 10px;
+            object-fit: contain;
+        }
+
+        .remove-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 15px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+
+        .next-btn {
+            display: block;
+            margin: 20px auto 0;
+            background: linear-gradient(135deg, #ff9a9e 0%, #ff6b9d 100%);
+            color: white;
+            border: none;
+            padding: 15px 50px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 157, 0.3);
+        }
+
+        .next-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4);
+        }
+
+        .next-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* Game Section */
+        .game-section {
+            display: flex;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        .puzzle-area {
+            flex: 2;
+        }
+
+        .pieces-area {
+            flex: 1;
+            background: rgba(255, 192, 203, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            min-height: 400px;
+        }
+
+        .pieces-area h3 {
+            color: #ff6b9d;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            background: rgba(255, 192, 203, 0.1);
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        #puzzleCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .pieces-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .piece-item {
+            aspect-ratio: 1;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: grab;
+            transition: transform 0.2s ease;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .piece-item:hover {
+            transform: scale(1.05);
+        }
+
+        .piece-item.dragging {
+            cursor: grabbing;
+            opacity: 0.8;
+            z-index: 1000;
+        }
+
+        .piece-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            pointer-events: none;
+        }
+
+        .progress-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .progress-text {
+            color: #ff6b9d;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(255, 192, 203, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff9a9e 0%, #ff6b9d 100%);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        /* Success Section */
+        .success-section {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .success-title {
+            font-size: 3rem;
+            color: #ff6b9d;
+            margin-bottom: 20px;
+            animation: bounce 0.5s ease infinite alternate;
+        }
+
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-10px); }
+        }
+
+        .success-message {
+            font-size: 1.5rem;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .result-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto 30px;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        #resultCanvas {
+            width: 100%;
+            display: block;
+        }
+
+        .restart-btn {
+            background: linear-gradient(135deg, #ff9a9e 0%, #ff6b9d 100%);
+            color: white;
+            border: none;
+            padding: 15px 50px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 157, 0.3);
+        }
+
+        .restart-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4);
+        }
+
+        /* Fireworks Canvas */
+        #fireworksCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .upload-section {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .upload-box {
+                max-width: 100%;
+            }
+
+            .game-section {
+                flex-direction: column;
+            }
+
+            .pieces-area {
+                min-height: 200px;
+            }
+
+            .pieces-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💕 Memory Shards 💕</h1>
+        <p class="subtitle">用拼图拼凑你们的专属回忆</p>
+
+        <!-- Step 1: Upload -->
+        <div id="step1" class="step active">
+            <div class="upload-section">
+                <div class="upload-box" id="uploadBox1">
+                    <h3>💑 用户1 - 上传照片</h3>
+                    <p>拖拽或点击上传你们的第一张照片</p>
+                    <input type="file" id="fileInput1" accept="image/*" class="hidden">
+                    <button class="upload-btn" onclick="document.getElementById('fileInput1').click()">选择照片</button>
+                    <div class="preview-container" id="preview1">
+                        <img class="preview-img" id="previewImg1">
+                        <button class="remove-btn" onclick="removeImage(1)">重新上传</button>
+                    </div>
+                </div>
+
+                <div class="upload-box" id="uploadBox2">
+                    <h3>💑 用户2 - 上传照片</h3>
+                    <p>拖拽或点击上传你们的第二张照片</p>
+                    <input type="file" id="fileInput2" accept="image/*" class="hidden">
+                    <button class="upload-btn" onclick="document.getElementById('fileInput2').click()">选择照片</button>
+                    <div class="preview-container" id="preview2">
+                        <img class="preview-img" id="previewImg2">
+                        <button class="remove-btn" onclick="removeImage(2)">重新上传</button>
+                    </div>
+                </div>
+            </div>
+
+            <button class="next-btn" id="startGameBtn" onclick="startGame()" disabled>开始拼图游戏 🎮</button>
+        </div>
+
+        <!-- Step 2: Game -->
+        <div id="step2" class="step">
+            <div class="game-section">
+                <div class="puzzle-area">
+                    <div class="canvas-container">
+                        <canvas id="puzzleCanvas"></canvas>
+                    </div>
+                    <div class="progress-container">
+                        <p class="progress-text">已完成: <span id="completedCount">0</span> / 6 块</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pieces-area">
+                    <h3>🧩 拼图碎片</h3>
+                    <div class="pieces-grid" id="piecesGrid">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Success -->
+        <div id="step3" class="step">
+            <div class="success-section">
+                <h2 class="success-title">🎉 太棒啦！🎉</h2>
+                <p class="success-message" id="successMessage">你们完美地拼凑了属于彼此的回忆！</p>
+                <div class="result-container">
+                    <canvas id="resultCanvas"></canvas>
+                </div>
+                <button class="restart-btn" onclick="restartGame()">再玩一次 🔄</button>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="fireworksCanvas"></canvas>
+
+    <script>
+        let uploadedImages = {
+            1: null,
+            2: null
+        };
+
+        let puzzleState = {
+            pieces: [],
+            placedPieces: [],
+            totalPieces: 6,
+            completedPieces: 0,
+            gridCols: 3,
+            gridRows: 2,
+            cellWidth: 0,
+            cellHeight: 0,
+            canvasWidth: 600,
+            canvasHeight: 400
+        };
+
+        let draggedPiece = null;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
+        const canvas = document.getElementById('puzzleCanvas');
+        const ctx = canvas.getContext('2d');
+        const piecesGrid = document.getElementById('piecesGrid');
+
+        function initUpload() {
+            setupDragDrop(1);
+            setupDragDrop(2);
+            setupFileInput(1);
+            setupFileInput(2);
+        }
+
+        function setupDragDrop(userNum) {
+            const box = document.getElementById(`uploadBox${userNum}`);
+            
+            box.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                box.classList.add('dragover');
+            });
+
+            box.addEventListener('dragleave', () => {
+                box.classList.remove('dragover');
+            });
+
+            box.addEventListener('drop', (e) => {
+                e.preventDefault();
+                box.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].type.startsWith('image/')) {
+                    handleFile(files[0], userNum);
+                }
+            });
+        }
+
+        function setupFileInput(userNum) {
+            const fileInput = document.getElementById(`fileInput${userNum}`);
+            
+            fileInput.addEventListener('change', (e) => {
+                const files = e.target.files;
+                if (files.length > 0) {
+                    handleFile(files[0], userNum);
+                }
+            });
+        }
+
+        function handleFile(file, userNum) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const img = new Image();
+                    img.onload = () => {
+                        uploadedImages[userNum] = img;
+                        updatePreview(userNum, data.url);
+                        checkBothUploaded();
+                    };
+                    img.src = data.url;
+                } else {
+                    alert('上传失败: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        uploadedImages[userNum] = img;
+                        updatePreview(userNum, e.target.result);
+                        checkBothUploaded();
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function updatePreview(userNum, url) {
+            const preview = document.getElementById(`preview${userNum}`);
+            const previewImg = document.getElementById(`previewImg${userNum}`);
+            previewImg.src = url;
+            preview.classList.add('show');
+            
+            const box = document.getElementById(`uploadBox${userNum}`);
+            const uploadBtn = box.querySelector('.upload-btn');
+            uploadBtn.style.display = 'none';
+        }
+
+        function removeImage(userNum) {
+            uploadedImages[userNum] = null;
+            const preview = document.getElementById(`preview${userNum}`);
+            preview.classList.remove('show');
+            
+            const box = document.getElementById(`uploadBox${userNum}`);
+            const uploadBtn = box.querySelector('.upload-btn');
+            uploadBtn.style.display = 'inline-block';
+            
+            document.getElementById(`fileInput${userNum}`).value = '';
+            checkBothUploaded();
+        }
+
+        function checkBothUploaded() {
+            const startBtn = document.getElementById('startGameBtn');
+            if (uploadedImages[1] && uploadedImages[2]) {
+                startBtn.disabled = false;
+            } else {
+                startBtn.disabled = true;
+            }
+        }
+
+        function startGame() {
+            document.getElementById('step1').classList.remove('active');
+            document.getElementById('step2').classList.add('active');
+            
+            initPuzzle();
+        }
+
+        function initPuzzle() {
+            const container = canvas.parentElement;
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            
+            canvas.width = containerWidth;
+            canvas.height = containerHeight;
+            
+            puzzleState.canvasWidth = canvas.width;
+            puzzleState.canvasHeight = canvas.height;
+            puzzleState.cellWidth = canvas.width / puzzleState.gridCols;
+            puzzleState.cellHeight = canvas.height / puzzleState.gridRows;
+            puzzleState.pieces = [];
+            puzzleState.placedPieces = [];
+            puzzleState.completedPieces = 0;
+            
+            document.getElementById('completedCount').textContent = '0';
+            document.getElementById('progressFill').style.width = '0%';
+            
+            piecesGrid.innerHTML = '';
+            
+            cutImageIntoPieces();
+            shufflePieces();
+            renderPieces();
+            drawPuzzleArea();
+            
+            canvas.addEventListener('mousemove', handleCanvasMouseMove);
+            canvas.addEventListener('mouseup', handleCanvasMouseUp);
+            canvas.addEventListener('touchmove', handleCanvasTouchMove, { passive: false });
+            canvas.addEventListener('touchend', handleCanvasTouchEnd);
+        }
+
+        function cutImageIntoPieces() {
+            const img1 = uploadedImages[1];
+            const img2 = uploadedImages[2];
+            
+            for (let i = 0; i < 3; i++) {
+                puzzleState.pieces.push({
+                    id: i,
+                    image: img1,
+                    originalX: (i % puzzleState.gridCols),
+                    originalY: Math.floor(i / puzzleState.gridCols),
+                    targetX: (i % puzzleState.gridCols),
+                    targetY: Math.floor(i / puzzleState.gridCols),
+                    isPlaced: false
+                });
+            }
+            
+            for (let i = 3; i < 6; i++) {
+                puzzleState.pieces.push({
+                    id: i,
+                    image: img2,
+                    originalX: (i - 3) % puzzleState.gridCols,
+                    originalY: Math.floor((i - 3) / puzzleState.gridCols),
+                    targetX: (i - 3) % puzzleState.gridCols,
+                    targetY: Math.floor((i - 3) / puzzleState.gridCols),
+                    isPlaced: false
+                });
+            }
+        }
+
+        function shufflePieces() {
+            for (let i = puzzleState.pieces.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [puzzleState.pieces[i], puzzleState.pieces[j]] = [puzzleState.pieces[j], puzzleState.pieces[i]];
+            }
+        }
+
+        function renderPieces() {
+            piecesGrid.innerHTML = '';
+            
+            puzzleState.pieces.forEach((piece, index) => {
+                if (!piece.isPlaced) {
+                    const pieceDiv = document.createElement('div');
+                    pieceDiv.className = 'piece-item';
+                    pieceDiv.draggable = true;
+                    pieceDiv.dataset.pieceId = piece.id;
+                    
+                    const pieceCanvas = document.createElement('canvas');
+                    const pieceCtx = pieceCanvas.getContext('2d');
+                    pieceCanvas.width = 150;
+                    pieceCanvas.height = 150;
+                    
+                    const img = piece.image;
+                    const sx = piece.originalX * (img.width / puzzleState.gridCols);
+                    const sy = piece.originalY * (img.height / 2);
+                    const sw = img.width / puzzleState.gridCols;
+                    const sh = img.height / 2;
+                    
+                    pieceCtx.fillStyle = '#fff';
+                    pieceCtx.fillRect(0, 0, pieceCanvas.width, pieceCanvas.height);
+                    pieceCtx.drawImage(img, sx, sy, sw, sh, 0, 0, pieceCanvas.width, pieceCanvas.height);
+                    
+                    const imgElement = document.createElement('img');
+                    imgElement.src = pieceCanvas.toDataURL();
+                    imgElement.className = 'piece-img';
+                    pieceDiv.appendChild(imgElement);
+                    
+                    pieceDiv.addEventListener('dragstart', handlePieceDragStart);
+                    pieceDiv.addEventListener('dragend', handlePieceDragEnd);
+                    
+                    pieceDiv.addEventListener('touchstart', handlePieceTouchStart, { passive: false });
+                    pieceDiv.addEventListener('touchmove', handlePieceTouchMove, { passive: false });
+                    pieceDiv.addEventListener('touchend', handlePieceTouchEnd);
+                    
+                    piecesGrid.appendChild(pieceDiv);
+                }
+            });
+        }
+
+        function drawPuzzleArea() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = 'rgba(255, 107, 157, 0.3)';
+            ctx.lineWidth = 2;
+            
+            for (let i = 0; i <= puzzleState.gridCols; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * puzzleState.cellWidth, 0);
+                ctx.lineTo(i * puzzleState.cellWidth, canvas.height);
+                ctx.stroke();
+            }
+            
+            for (let i = 0; i <= 2; i++) {
+                ctx.beginPath();
+                ctx.moveTo(0, i * puzzleState.cellHeight);
+                ctx.lineTo(canvas.width, i * puzzleState.cellHeight);
+                ctx.stroke();
+            }
+            
+            puzzleState.placedPieces.forEach(piece => {
+                drawPiece(piece, piece.targetX * puzzleState.cellWidth, piece.targetY * puzzleState.cellHeight);
+            });
+        }
+
+        function drawPiece(piece, x, y) {
+            const img = piece.image;
+            const sx = piece.originalX * (img.width / puzzleState.gridCols);
+            const sy = piece.originalY * (img.height / 2);
+            const sw = img.width / puzzleState.gridCols;
+            const sh = img.height / 2;
+            
+            ctx.drawImage(img, sx, sy, sw, sh, x, y, puzzleState.cellWidth, puzzleState.cellHeight);
+            
+            ctx.strokeStyle = '#ff6b9d';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, puzzleState.cellWidth, puzzleState.cellHeight);
+        }
+
+        function handlePieceDragStart(e) {
+            const pieceId = parseInt(e.target.closest('.piece-item').dataset.pieceId);
+            draggedPiece = puzzleState.pieces.find(p => p.id === pieceId);
+            e.target.closest('.piece-item').classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handlePieceDragEnd(e) {
+            if (e.target.closest('.piece-item')) {
+                e.target.closest('.piece-item').classList.remove('dragging');
+            }
+            draggedPiece = null;
+        }
+
+        let touchPiece = null;
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchOffsetX = 0;
+        let touchOffsetY = 0;
+
+        function handlePieceTouchStart(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const pieceId = parseInt(e.target.closest('.piece-item').dataset.pieceId);
+            touchPiece = puzzleState.pieces.find(p => p.id === pieceId);
+            
+            const pieceRect = e.target.closest('.piece-item').getBoundingClientRect();
+            const canvasRect = canvas.getBoundingClientRect();
+            
+            touchStartX = touch.clientX - canvasRect.left;
+            touchStartY = touch.clientY - canvasRect.top;
+            touchOffsetX = touch.clientX - pieceRect.left;
+            touchOffsetY = touch.clientY - pieceRect.top;
+            
+            e.target.closest('.piece-item').classList.add('dragging');
+        }
+
+        function handlePieceTouchMove(e) {
+            if (!touchPiece) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const canvasRect = canvas.getBoundingClientRect();
+            const x = touch.clientX - canvasRect.left;
+            const y = touch.clientY - canvasRect.top;
+            
+            drawPuzzleArea();
+            
+            const img = touchPiece.image;
+            const sx = touchPiece.originalX * (img.width / puzzleState.gridCols);
+            const sy = touchPiece.originalY * (img.height / 2);
+            const sw = img.width / puzzleState.gridCols;
+            const sh = img.height / 2;
+            
+            ctx.drawImage(img, sx, sy, sw, sh, x - touchOffsetX, y - touchOffsetY, puzzleState.cellWidth, puzzleState.cellHeight);
+        }
+
+        function handlePieceTouchEnd(e) {
+            if (!touchPiece) return;
+            
+            const touch = e.changedTouches[0];
+            const canvasRect = canvas.getBoundingClientRect();
+            const x = touch.clientX - canvasRect.left;
+            const y = touch.clientY - canvasRect.top;
+            
+            checkAndPlacePiece(touchPiece, x - touchOffsetX, y - touchOffsetY);
+            
+            touchPiece = null;
+            
+            if (e.target.closest('.piece-item')) {
+                e.target.closest('.piece-item').classList.remove('dragging');
+            }
+        }
+
+        function handleCanvasMouseMove(e) {
+            if (draggedPiece) {
+                const canvasRect = canvas.getBoundingClientRect();
+                const x = e.clientX - canvasRect.left;
+                const y = e.clientY - canvasRect.top;
+                
+                drawPuzzleArea();
+                
+                const img = draggedPiece.image;
+                const sx = draggedPiece.originalX * (img.width / puzzleState.gridCols);
+                const sy = draggedPiece.originalY * (img.height / 2);
+                const sw = img.width / puzzleState.gridCols;
+                const sh = img.height / 2;
+                
+                ctx.drawImage(img, sx, sy, sw, sh, x - dragOffsetX, y - dragOffsetY, puzzleState.cellWidth, puzzleState.cellHeight);
+            }
+        }
+
+        function handleCanvasMouseUp(e) {
+            if (draggedPiece) {
+                const canvasRect = canvas.getBoundingClientRect();
+                const x = e.clientX - canvasRect.left;
+                const y = e.clientY - canvasRect.top;
+                
+                checkAndPlacePiece(draggedPiece, x - dragOffsetX, y - dragOffsetY);
+                draggedPiece = null;
+            }
+        }
+
+        function handleCanvasTouchMove(e) {
+            if (!touchPiece) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const canvasRect = canvas.getBoundingClientRect();
+            const x = touch.clientX - canvasRect.left;
+            const y = touch.clientY - canvasRect.top;
+            
+            drawPuzzleArea();
+            
+            const img = touchPiece.image;
+            const sx = touchPiece.originalX * (img.width / puzzleState.gridCols);
+            const sy = touchPiece.originalY * (img.height / 2);
+            const sw = img.width / puzzleState.gridCols;
+            const sh = img.height / 2;
+            
+            ctx.drawImage(img, sx, sy, sw, sh, x - touchOffsetX, y - touchOffsetY, puzzleState.cellWidth, puzzleState.cellHeight);
+        }
+
+        function handleCanvasTouchEnd(e) {
+            if (!touchPiece) return;
+            
+            const touch = e.changedTouches[0];
+            const canvasRect = canvas.getBoundingClientRect();
+            const x = touch.clientX - canvasRect.left;
+            const y = touch.clientY - canvasRect.top;
+            
+            checkAndPlacePiece(touchPiece, x - touchOffsetX, y - touchOffsetY);
+            
+            touchPiece = null;
+        }
+
+        function checkAndPlacePiece(piece, x, y) {
+            const centerX = x + puzzleState.cellWidth / 2;
+            const centerY = y + puzzleState.cellHeight / 2;
+            
+            const col = Math.floor(centerX / puzzleState.cellWidth);
+            const row = Math.floor(centerY / puzzleState.cellHeight);
+            
+            if (col >= 0 && col < puzzleState.gridCols && row >= 0 && row < 2) {
+                if (col === piece.targetX && row === piece.targetY) {
+                    const isOccupied = puzzleState.placedPieces.some(p => 
+                        p.targetX === col && p.targetY === row
+                    );
+                    
+                    if (!isOccupied) {
+                        placePiece(piece, col, row);
+                        return;
+                    }
+                }
+            }
+            
+            drawPuzzleArea();
+            renderPieces();
+        }
+
+        function placePiece(piece, col, row) {
+            piece.isPlaced = true;
+            puzzleState.placedPieces.push(piece);
+            puzzleState.completedPieces++;
+            
+            document.getElementById('completedCount').textContent = puzzleState.completedPieces;
+            const progress = (puzzleState.completedPieces / puzzleState.totalPieces) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+            
+            drawPuzzleArea();
+            renderPieces();
+            
+            if (puzzleState.completedPieces === puzzleState.totalPieces) {
+                setTimeout(showSuccess, 500);
+            }
+        }
+
+        function showSuccess() {
+            document.getElementById('step2').classList.remove('active');
+            document.getElementById('step3').classList.add('active');
+            
+            createFusionImage();
+            startFireworks();
+            playSuccessSound();
+        }
+
+        function createFusionImage() {
+            const resultCanvas = document.getElementById('resultCanvas');
+            const resultCtx = resultCanvas.getContext('2d');
+            
+            resultCanvas.width = 600;
+            resultCanvas.height = 400;
+            
+            const img1 = uploadedImages[1];
+            const img2 = uploadedImages[2];
+            
+            resultCtx.globalAlpha = 0.5;
+            
+            drawCoverImage(resultCtx, img1, resultCanvas.width, resultCanvas.height);
+            
+            resultCtx.globalAlpha = 0.5;
+            drawCoverImage(resultCtx, img2, resultCanvas.width, resultCanvas.height);
+            
+            resultCtx.globalAlpha = 1.0;
+            
+            resultCtx.globalCompositeOperation = 'overlay';
+            
+            const gradient = resultCtx.createRadialGradient(
+                resultCanvas.width / 2, resultCanvas.height / 2, 0,
+                resultCanvas.width / 2, resultCanvas.height / 2, resultCanvas.width / 2
+            );
+            gradient.addColorStop(0, 'rgba(255, 192, 203, 0.3)');
+            gradient.addColorStop(1, 'rgba(255, 107, 157, 0.1)');
+            resultCtx.fillStyle = gradient;
+            resultCtx.fillRect(0, 0, resultCanvas.width, resultCanvas.height);
+            
+            resultCtx.globalCompositeOperation = 'source-over';
+        }
+
+        function drawCoverImage(ctx, img, width, height) {
+            const imgRatio = img.width / img.height;
+            const canvasRatio = width / height;
+            
+            let drawWidth, drawHeight;
+            let drawX, drawY;
+            
+            if (imgRatio > canvasRatio) {
+                drawHeight = height;
+                drawWidth = img.width * (height / img.height);
+                drawX = (width - drawWidth) / 2;
+                drawY = 0;
+            } else {
+                drawWidth = width;
+                drawHeight = img.height * (width / img.width);
+                drawX = 0;
+                drawY = (height - drawHeight) / 2;
+            }
+            
+            ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+        }
+
+        let fireworksParticles = [];
+        let fireworksAnimationId = null;
+
+        function startFireworks() {
+            const fwCanvas = document.getElementById('fireworksCanvas');
+            const fwCtx = fwCanvas.getContext('2d');
+            
+            fwCanvas.width = window.innerWidth;
+            fwCanvas.height = window.innerHeight;
+            
+            fireworksParticles = [];
+            
+            const messages = [
+                '你们完美地拼凑了属于彼此的回忆！',
+                '爱情就像拼图，需要彼此的每一块都很重要！',
+                '每一块碎片都承载着你们的甜蜜回忆！',
+                '太棒了！你们的回忆拼图完美！'
+            ];
+            document.getElementById('successMessage').textContent = messages[Math.floor(Math.random() * messages.length)];
+            
+            function launchFirework() {
+                for (let i = 0; i < 3; i++) {
+                    createFirework(
+                        Math.random() * fwCanvas.width,
+                        Math.random() * fwCanvas.height * 0.5
+                    );
+                }
+            }
+            
+            function animateFireworks() {
+                fwCanvas.style.display = 'block';
+                fwCtx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+                fwCtx.fillRect(0, 0, fwCanvas.width, fwCanvas.height);
+                
+                fireworksParticles = fireworksParticles.filter(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.05;
+                    p.alpha -= 0.01;
+                    p.size *= 0.98;
+                    
+                    if (p.alpha > 0 && p.size > 0.5) {
+                        fwCtx.globalAlpha = p.alpha;
+                        fwCtx.fillStyle = p.color;
+                        fwCtx.beginPath();
+                        fwCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        fwCtx.fill();
+                        return true;
+                    }
+                    return false;
+                });
+                
+                fwCtx.globalAlpha = 1;
+                
+                if (fireworksParticles.length > 0) {
+                    fireworksAnimationId = requestAnimationFrame(animateFireworks);
+                } else {
+                    fwCanvas.style.display = 'none';
+                }
+            }
+            
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    launchFirework();
+                }, i * 300);
+            }
+            
+            animateFireworks();
+            
+            setTimeout(() => {
+                for (let i = 0; i < 3; i++) {
+                    setTimeout(() => {
+                        launchFirework();
+                    }, i * 400);
+                }
+            }, 2000);
+        }
+
+        function createFirework(x, y) {
+            const colors = ['#ff6b9d', '#ff9a9e', '#fecfef', '#ff4757', '#ff6348', '#ffa502', '#ffd700', '#ff1493', '#ff69b4', '#dda0dd'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            
+            const particleCount = 30 + Math.floor(Math.random() * 20);
+            
+            for (let i = 0; i < particleCount; i++) {
+                const angle = (Math.PI * 2 * i) / particleCount;
+                const speed = 2 + Math.random() * 4;
+                
+                fireworksParticles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    size: 3 + Math.random() * 3,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    alpha: 1
+                });
+            }
+        }
+
+        function playSuccessSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                function playNote(frequency, duration, startTime) {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.value = frequency;
+                    oscillator.type = 'sine';
+                    
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime + startTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + startTime + duration);
+                    
+                    oscillator.start(audioContext.currentTime + startTime);
+                    oscillator.stop(audioContext.currentTime + startTime + duration);
+                }
+                
+                const melody = [
+                    { freq: 523.25, dur: 0.2, start: 0 },
+                    { freq: 659.25, dur: 0.2, start: 0.15 },
+                    { freq: 783.99, dur: 0.3, start: 0.3 },
+                    { freq: 1046.50, dur: 0.4, start: 0.5 }
+                ];
+                
+                melody.forEach(note => {
+                    playNote(note.freq, note.dur, note.start);
+                });
+                
+            } catch (e) {
+                console.log('Audio not supported');
+            }
+        }
+
+        function restartGame() {
+            if (fireworksAnimationId) {
+                cancelAnimationFrame(fireworksAnimationId);
+                fireworksAnimationId = null;
+            }
+            
+            document.getElementById('step3').classList.remove('active');
+            document.getElementById('step1').classList.add('active');
+            
+            uploadedImages = { 1: null, 2: null };
+            
+            for (let i = 1; i <= 2; i++) {
+                const preview = document.getElementById(`preview${i}`);
+                preview.classList.remove('show');
+                
+                const box = document.getElementById(`uploadBox${i}`);
+                const uploadBtn = box.querySelector('.upload-btn');
+                uploadBtn.style.display = 'inline-block';
+                
+                document.getElementById(`fileInput${i}`).value = '';
+            }
+            
+            document.getElementById('startGameBtn').disabled = true;
+        }
+
+        initUpload();
+    </script>
+</body>
+</html>
