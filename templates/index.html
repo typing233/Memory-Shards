@@ -727,8 +727,8 @@
 
         let isMouseDragging = false;
         let mouseDragPiece = null;
-        let mouseDragOffsetX = 0;
-        let mouseDragOffsetY = 0;
+        let mouseDragOffsetRatioX = 0;
+        let mouseDragOffsetRatioY = 0;
         let dragPreviewElement = null;
 
         function renderPieces() {
@@ -779,24 +779,27 @@
             const pieceDiv = e.target.closest('.piece-item');
             const pieceRect = pieceDiv.getBoundingClientRect();
             
-            mouseDragOffsetX = e.clientX - pieceRect.left;
-            mouseDragOffsetY = e.clientY - pieceRect.top;
+            const offsetX = e.clientX - pieceRect.left;
+            const offsetY = e.clientY - pieceRect.top;
+            
+            mouseDragOffsetRatioX = offsetX / pieceRect.width;
+            mouseDragOffsetRatioY = offsetY / pieceRect.height;
             
             isMouseDragging = true;
             pieceDiv.classList.add('dragging');
             
-            createDragPreview(pieceRect, e.clientX, e.clientY);
+            createDragPreview(pieceRect, e.clientX, e.clientY, offsetX, offsetY);
         }
 
-        function createDragPreview(pieceRect, clientX, clientY) {
+        function createDragPreview(pieceRect, clientX, clientY, offsetX, offsetY) {
             const overlay = document.getElementById('dragOverlay');
             const preview = document.getElementById('dragPreview');
             
             preview.innerHTML = '';
             preview.style.width = pieceRect.width + 'px';
             preview.style.height = pieceRect.height + 'px';
-            preview.style.left = (clientX - mouseDragOffsetX) + 'px';
-            preview.style.top = (clientY - mouseDragOffsetY) + 'px';
+            preview.style.left = (clientX - offsetX) + 'px';
+            preview.style.top = (clientY - offsetY) + 'px';
             
             const cloneImg = document.createElement('img');
             cloneImg.src = mouseDragPiece ? 
@@ -814,8 +817,14 @@
             if (!isMouseDragging || !mouseDragPiece) return;
             
             const preview = document.getElementById('dragPreview');
-            preview.style.left = (e.clientX - mouseDragOffsetX) + 'px';
-            preview.style.top = (e.clientY - mouseDragOffsetY) + 'px';
+            const previewWidth = parseInt(preview.style.width);
+            const previewHeight = parseInt(preview.style.height);
+            
+            const previewOffsetX = mouseDragOffsetRatioX * previewWidth;
+            const previewOffsetY = mouseDragOffsetRatioY * previewHeight;
+            
+            preview.style.left = (e.clientX - previewOffsetX) + 'px';
+            preview.style.top = (e.clientY - previewOffsetY) + 'px';
             
             const canvasRect = canvas.getBoundingClientRect();
             const x = e.clientX - canvasRect.left;
@@ -829,9 +838,12 @@
             const sw = img.width / puzzleState.gridCols;
             const sh = img.height / 2;
             
+            const canvasOffsetX = mouseDragOffsetRatioX * puzzleState.cellWidth;
+            const canvasOffsetY = mouseDragOffsetRatioY * puzzleState.cellHeight;
+            
             if (e.clientX >= canvasRect.left && e.clientX <= canvasRect.right &&
                 e.clientY >= canvasRect.top && e.clientY <= canvasRect.bottom) {
-                ctx.drawImage(img, sx, sy, sw, sh, x - mouseDragOffsetX, y - mouseDragOffsetY, puzzleState.cellWidth, puzzleState.cellHeight);
+                ctx.drawImage(img, sx, sy, sw, sh, x - canvasOffsetX, y - canvasOffsetY, puzzleState.cellWidth, puzzleState.cellHeight);
             }
         }
 
@@ -850,7 +862,13 @@
             const mouseX = e.clientX - canvasRect.left;
             const mouseY = e.clientY - canvasRect.top;
             
-            checkAndPlacePiece(mouseDragPiece, mouseX, mouseY);
+            const canvasOffsetX = mouseDragOffsetRatioX * puzzleState.cellWidth;
+            const canvasOffsetY = mouseDragOffsetRatioY * puzzleState.cellHeight;
+            
+            const pieceX = mouseX - canvasOffsetX;
+            const pieceY = mouseY - canvasOffsetY;
+            
+            checkAndPlacePiece(mouseDragPiece, pieceX, pieceY);
             
             isMouseDragging = false;
             mouseDragPiece = null;
@@ -896,10 +914,8 @@
         }
 
         let touchPiece = null;
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let touchOffsetX = 0;
-        let touchOffsetY = 0;
+        let touchOffsetRatioX = 0;
+        let touchOffsetRatioY = 0;
 
         function handlePieceTouchStart(e) {
             e.preventDefault();
@@ -908,12 +924,12 @@
             touchPiece = puzzleState.pieces.find(p => p.id === pieceId);
             
             const pieceRect = e.target.closest('.piece-item').getBoundingClientRect();
-            const canvasRect = canvas.getBoundingClientRect();
             
-            touchStartX = touch.clientX - canvasRect.left;
-            touchStartY = touch.clientY - canvasRect.top;
-            touchOffsetX = touch.clientX - pieceRect.left;
-            touchOffsetY = touch.clientY - pieceRect.top;
+            const offsetX = touch.clientX - pieceRect.left;
+            const offsetY = touch.clientY - pieceRect.top;
+            
+            touchOffsetRatioX = offsetX / pieceRect.width;
+            touchOffsetRatioY = offsetY / pieceRect.height;
             
             e.target.closest('.piece-item').classList.add('dragging');
         }
@@ -934,7 +950,10 @@
             const sw = img.width / puzzleState.gridCols;
             const sh = img.height / 2;
             
-            ctx.drawImage(img, sx, sy, sw, sh, x - touchOffsetX, y - touchOffsetY, puzzleState.cellWidth, puzzleState.cellHeight);
+            const canvasOffsetX = touchOffsetRatioX * puzzleState.cellWidth;
+            const canvasOffsetY = touchOffsetRatioY * puzzleState.cellHeight;
+            
+            ctx.drawImage(img, sx, sy, sw, sh, x - canvasOffsetX, y - canvasOffsetY, puzzleState.cellWidth, puzzleState.cellHeight);
         }
 
         function handlePieceTouchEnd(e) {
@@ -945,7 +964,13 @@
             const touchX = touch.clientX - canvasRect.left;
             const touchY = touch.clientY - canvasRect.top;
             
-            checkAndPlacePiece(touchPiece, touchX, touchY);
+            const canvasOffsetX = touchOffsetRatioX * puzzleState.cellWidth;
+            const canvasOffsetY = touchOffsetRatioY * puzzleState.cellHeight;
+            
+            const pieceX = touchX - canvasOffsetX;
+            const pieceY = touchY - canvasOffsetY;
+            
+            checkAndPlacePiece(touchPiece, pieceX, pieceY);
             
             touchPiece = null;
             
@@ -954,9 +979,12 @@
             }
         }
 
-        function checkAndPlacePiece(piece, mouseX, mouseY) {
-            const col = Math.floor(mouseX / puzzleState.cellWidth);
-            const row = Math.floor(mouseY / puzzleState.cellHeight);
+        function checkAndPlacePiece(piece, pieceX, pieceY) {
+            const centerX = pieceX + puzzleState.cellWidth / 2;
+            const centerY = pieceY + puzzleState.cellHeight / 2;
+            
+            const col = Math.floor(centerX / puzzleState.cellWidth);
+            const row = Math.floor(centerY / puzzleState.cellHeight);
             
             if (col >= 0 && col < puzzleState.gridCols && row >= 0 && row < 2) {
                 if (col === piece.targetX && row === piece.targetY) {
