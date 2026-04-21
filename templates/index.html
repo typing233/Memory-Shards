@@ -847,10 +847,10 @@
             }
             
             const canvasRect = canvas.getBoundingClientRect();
-            const x = e.clientX - canvasRect.left;
-            const y = e.clientY - canvasRect.top;
+            const mouseX = e.clientX - canvasRect.left;
+            const mouseY = e.clientY - canvasRect.top;
             
-            checkAndPlacePiece(mouseDragPiece, x - mouseDragOffsetX, y - mouseDragOffsetY);
+            checkAndPlacePiece(mouseDragPiece, mouseX, mouseY);
             
             isMouseDragging = false;
             mouseDragPiece = null;
@@ -942,10 +942,10 @@
             
             const touch = e.changedTouches[0];
             const canvasRect = canvas.getBoundingClientRect();
-            const x = touch.clientX - canvasRect.left;
-            const y = touch.clientY - canvasRect.top;
+            const touchX = touch.clientX - canvasRect.left;
+            const touchY = touch.clientY - canvasRect.top;
             
-            checkAndPlacePiece(touchPiece, x - touchOffsetX, y - touchOffsetY);
+            checkAndPlacePiece(touchPiece, touchX, touchY);
             
             touchPiece = null;
             
@@ -954,12 +954,9 @@
             }
         }
 
-        function checkAndPlacePiece(piece, x, y) {
-            const centerX = x + puzzleState.cellWidth / 2;
-            const centerY = y + puzzleState.cellHeight / 2;
-            
-            const col = Math.floor(centerX / puzzleState.cellWidth);
-            const row = Math.floor(centerY / puzzleState.cellHeight);
+        function checkAndPlacePiece(piece, mouseX, mouseY) {
+            const col = Math.floor(mouseX / puzzleState.cellWidth);
+            const row = Math.floor(mouseY / puzzleState.cellHeight);
             
             if (col >= 0 && col < puzzleState.gridCols && row >= 0 && row < 2) {
                 if (col === piece.targetX && row === piece.targetY) {
