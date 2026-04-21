@@ -145,6 +145,57 @@
             font-size: 0.9rem;
         }
 
+        .uploading-text {
+            color: #ff6b9d;
+            font-size: 1rem;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .uploading-text.show {
+            display: block;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fecfef;
+            border-radius: 50%;
+            border-top-color: #ff6b9d;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .drag-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+        }
+
+        .drag-overlay.show {
+            display: block;
+        }
+
+        .drag-preview {
+            position: absolute;
+            pointer-events: none;
+            border: 2px solid #ff6b9d;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(255, 107, 157, 0.4);
+            opacity: 0.9;
+        }
+
         .next-btn {
             display: block;
             margin: 20px auto 0;
@@ -377,7 +428,10 @@
                     <h3>💑 用户1 - 上传照片</h3>
                     <p>拖拽或点击上传你们的第一张照片</p>
                     <input type="file" id="fileInput1" accept="image/*" class="hidden">
-                    <button class="upload-btn" onclick="document.getElementById('fileInput1').click()">选择照片</button>
+                    <button class="upload-btn" id="uploadBtn1" onclick="document.getElementById('fileInput1').click()">选择照片</button>
+                    <div class="uploading-text" id="uploadingText1">
+                        <span class="spinner"></span>上传中，请稍候...
+                    </div>
                     <div class="preview-container" id="preview1">
                         <img class="preview-img" id="previewImg1">
                         <button class="remove-btn" onclick="removeImage(1)">重新上传</button>
@@ -388,7 +442,10 @@
                     <h3>💑 用户2 - 上传照片</h3>
                     <p>拖拽或点击上传你们的第二张照片</p>
                     <input type="file" id="fileInput2" accept="image/*" class="hidden">
-                    <button class="upload-btn" onclick="document.getElementById('fileInput2').click()">选择照片</button>
+                    <button class="upload-btn" id="uploadBtn2" onclick="document.getElementById('fileInput2').click()">选择照片</button>
+                    <div class="uploading-text" id="uploadingText2">
+                        <span class="spinner"></span>上传中，请稍候...
+                    </div>
                     <div class="preview-container" id="preview2">
                         <img class="preview-img" id="previewImg2">
                         <button class="remove-btn" onclick="removeImage(2)">重新上传</button>
@@ -437,6 +494,10 @@
 
     <canvas id="fireworksCanvas"></canvas>
 
+    <div class="drag-overlay" id="dragOverlay">
+        <div class="drag-preview" id="dragPreview"></div>
+    </div>
+
     <script>
         let uploadedImages = {
             1: null,
@@ -456,9 +517,7 @@
             canvasHeight: 400
         };
 
-        let draggedPiece = null;
-        let dragOffsetX = 0;
-        let dragOffsetY = 0;
+
 
         const canvas = document.getElementById('puzzleCanvas');
         const ctx = canvas.getContext('2d');
@@ -505,7 +564,22 @@
             });
         }
 
+        function showUploading(userNum, show) {
+            const btn = document.getElementById(`uploadBtn${userNum}`);
+            const uploadingText = document.getElementById(`uploadingText${userNum}`);
+            
+            if (show) {
+                btn.disabled = true;
+                uploadingText.classList.add('show');
+            } else {
+                btn.disabled = false;
+                uploadingText.classList.remove('show');
+            }
+        }
+
         function handleFile(file, userNum) {
+            showUploading(userNum, true);
+            
             const formData = new FormData();
             formData.append('file', file);
 
@@ -515,6 +589,7 @@
             })
             .then(response => response.json())
             .then(data => {
+                showUploading(userNum, false);
                 if (data.success) {
                     const img = new Image();
                     img.onload = () => {
@@ -528,6 +603,7 @@
                 }
             })
             .catch(error => {
+                showUploading(userNum, false);
                 console.error('Error:', error);
                 const reader = new FileReader();
                 reader.onload = (e) => {
@@ -609,8 +685,6 @@
             renderPieces();
             drawPuzzleArea();
             
-            canvas.addEventListener('mousemove', handleCanvasMouseMove);
-            canvas.addEventListener('mouseup', handleCanvasMouseUp);
             canvas.addEventListener('touchmove', handleCanvasTouchMove, { passive: false });
             canvas.addEventListener('touchend', handleCanvasTouchEnd);
         }
@@ -651,6 +725,12 @@
             }
         }
 
+        let isMouseDragging = false;
+        let mouseDragPiece = null;
+        let mouseDragOffsetX = 0;
+        let mouseDragOffsetY = 0;
+        let dragPreviewElement = null;
+
         function renderPieces() {
             piecesGrid.innerHTML = '';
             
@@ -658,7 +738,6 @@
                 if (!piece.isPlaced) {
                     const pieceDiv = document.createElement('div');
                     pieceDiv.className = 'piece-item';
-                    pieceDiv.draggable = true;
                     pieceDiv.dataset.pieceId = piece.id;
                     
                     const pieceCanvas = document.createElement('canvas');
@@ -681,8 +760,7 @@
                     imgElement.className = 'piece-img';
                     pieceDiv.appendChild(imgElement);
                     
-                    pieceDiv.addEventListener('dragstart', handlePieceDragStart);
-                    pieceDiv.addEventListener('dragend', handlePieceDragEnd);
+                    pieceDiv.addEventListener('mousedown', handlePieceMouseDown);
                     
                     pieceDiv.addEventListener('touchstart', handlePieceTouchStart, { passive: false });
                     pieceDiv.addEventListener('touchmove', handlePieceTouchMove, { passive: false });
@@ -691,6 +769,91 @@
                     piecesGrid.appendChild(pieceDiv);
                 }
             });
+        }
+
+        function handlePieceMouseDown(e) {
+            e.preventDefault();
+            const pieceId = parseInt(e.target.closest('.piece-item').dataset.pieceId);
+            mouseDragPiece = puzzleState.pieces.find(p => p.id === pieceId);
+            
+            const pieceDiv = e.target.closest('.piece-item');
+            const pieceRect = pieceDiv.getBoundingClientRect();
+            
+            mouseDragOffsetX = e.clientX - pieceRect.left;
+            mouseDragOffsetY = e.clientY - pieceRect.top;
+            
+            isMouseDragging = true;
+            pieceDiv.classList.add('dragging');
+            
+            createDragPreview(pieceRect, e.clientX, e.clientY);
+        }
+
+        function createDragPreview(pieceRect, clientX, clientY) {
+            const overlay = document.getElementById('dragOverlay');
+            const preview = document.getElementById('dragPreview');
+            
+            preview.innerHTML = '';
+            preview.style.width = pieceRect.width + 'px';
+            preview.style.height = pieceRect.height + 'px';
+            preview.style.left = (clientX - mouseDragOffsetX) + 'px';
+            preview.style.top = (clientY - mouseDragOffsetY) + 'px';
+            
+            const cloneImg = document.createElement('img');
+            cloneImg.src = mouseDragPiece ? 
+                mouseDragPiece.image.src : 
+                document.querySelector('.piece-item.dragging .piece-img').src;
+            cloneImg.style.width = '100%';
+            cloneImg.style.height = '100%';
+            cloneImg.style.objectFit = 'cover';
+            preview.appendChild(cloneImg);
+            
+            overlay.classList.add('show');
+        }
+
+        function handleGlobalMouseMove(e) {
+            if (!isMouseDragging || !mouseDragPiece) return;
+            
+            const preview = document.getElementById('dragPreview');
+            preview.style.left = (e.clientX - mouseDragOffsetX) + 'px';
+            preview.style.top = (e.clientY - mouseDragOffsetY) + 'px';
+            
+            const canvasRect = canvas.getBoundingClientRect();
+            const x = e.clientX - canvasRect.left;
+            const y = e.clientY - canvasRect.top;
+            
+            drawPuzzleArea();
+            
+            const img = mouseDragPiece.image;
+            const sx = mouseDragPiece.originalX * (img.width / puzzleState.gridCols);
+            const sy = mouseDragPiece.originalY * (img.height / 2);
+            const sw = img.width / puzzleState.gridCols;
+            const sh = img.height / 2;
+            
+            if (e.clientX >= canvasRect.left && e.clientX <= canvasRect.right &&
+                e.clientY >= canvasRect.top && e.clientY <= canvasRect.bottom) {
+                ctx.drawImage(img, sx, sy, sw, sh, x - mouseDragOffsetX, y - mouseDragOffsetY, puzzleState.cellWidth, puzzleState.cellHeight);
+            }
+        }
+
+        function handleGlobalMouseUp(e) {
+            if (!isMouseDragging || !mouseDragPiece) return;
+            
+            const overlay = document.getElementById('dragOverlay');
+            overlay.classList.remove('show');
+            
+            const pieceDiv = document.querySelector('.piece-item.dragging');
+            if (pieceDiv) {
+                pieceDiv.classList.remove('dragging');
+            }
+            
+            const canvasRect = canvas.getBoundingClientRect();
+            const x = e.clientX - canvasRect.left;
+            const y = e.clientY - canvasRect.top;
+            
+            checkAndPlacePiece(mouseDragPiece, x - mouseDragOffsetX, y - mouseDragOffsetY);
+            
+            isMouseDragging = false;
+            mouseDragPiece = null;
         }
 
         function drawPuzzleArea() {
@@ -730,20 +893,6 @@
             ctx.strokeStyle = '#ff6b9d';
             ctx.lineWidth = 2;
             ctx.strokeRect(x, y, puzzleState.cellWidth, puzzleState.cellHeight);
-        }
-
-        function handlePieceDragStart(e) {
-            const pieceId = parseInt(e.target.closest('.piece-item').dataset.pieceId);
-            draggedPiece = puzzleState.pieces.find(p => p.id === pieceId);
-            e.target.closest('.piece-item').classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-        }
-
-        function handlePieceDragEnd(e) {
-            if (e.target.closest('.piece-item')) {
-                e.target.closest('.piece-item').classList.remove('dragging');
-            }
-            draggedPiece = null;
         }
 
         let touchPiece = null;
@@ -803,67 +952,6 @@
             if (e.target.closest('.piece-item')) {
                 e.target.closest('.piece-item').classList.remove('dragging');
             }
-        }
-
-        function handleCanvasMouseMove(e) {
-            if (draggedPiece) {
-                const canvasRect = canvas.getBoundingClientRect();
-                const x = e.clientX - canvasRect.left;
-                const y = e.clientY - canvasRect.top;
-                
-                drawPuzzleArea();
-                
-                const img = draggedPiece.image;
-                const sx = draggedPiece.originalX * (img.width / puzzleState.gridCols);
-                const sy = draggedPiece.originalY * (img.height / 2);
-                const sw = img.width / puzzleState.gridCols;
-                const sh = img.height / 2;
-                
-                ctx.drawImage(img, sx, sy, sw, sh, x - dragOffsetX, y - dragOffsetY, puzzleState.cellWidth, puzzleState.cellHeight);
-            }
-        }
-
-        function handleCanvasMouseUp(e) {
-            if (draggedPiece) {
-                const canvasRect = canvas.getBoundingClientRect();
-                const x = e.clientX - canvasRect.left;
-                const y = e.clientY - canvasRect.top;
-                
-                checkAndPlacePiece(draggedPiece, x - dragOffsetX, y - dragOffsetY);
-                draggedPiece = null;
-            }
-        }
-
-        function handleCanvasTouchMove(e) {
-            if (!touchPiece) return;
-            e.preventDefault();
-            const touch = e.touches[0];
-            const canvasRect = canvas.getBoundingClientRect();
-            const x = touch.clientX - canvasRect.left;
-            const y = touch.clientY - canvasRect.top;
-            
-            drawPuzzleArea();
-            
-            const img = touchPiece.image;
-            const sx = touchPiece.originalX * (img.width / puzzleState.gridCols);
-            const sy = touchPiece.originalY * (img.height / 2);
-            const sw = img.width / puzzleState.gridCols;
-            const sh = img.height / 2;
-            
-            ctx.drawImage(img, sx, sy, sw, sh, x - touchOffsetX, y - touchOffsetY, puzzleState.cellWidth, puzzleState.cellHeight);
-        }
-
-        function handleCanvasTouchEnd(e) {
-            if (!touchPiece) return;
-            
-            const touch = e.changedTouches[0];
-            const canvasRect = canvas.getBoundingClientRect();
-            const x = touch.clientX - canvasRect.left;
-            const y = touch.clientY - canvasRect.top;
-            
-            checkAndPlacePiece(touchPiece, x - touchOffsetX, y - touchOffsetY);
-            
-            touchPiece = null;
         }
 
         function checkAndPlacePiece(piece, x, y) {
@@ -1132,6 +1220,9 @@
             
             document.getElementById('startGameBtn').disabled = true;
         }
+
+        document.addEventListener('mousemove', handleGlobalMouseMove);
+        document.addEventListener('mouseup', handleGlobalMouseUp);
 
         initUpload();
     </script>
